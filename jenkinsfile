@@ -26,6 +26,12 @@ pipeline {
             }
         }
 
+        stage('Install Zip Utility') {
+            steps {
+                sh 'sudo apt-get update && sudo apt-get install -y zip'
+            }
+        }
+
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/akinyolci/dotnet-website.git'
@@ -46,7 +52,7 @@ pipeline {
 
         stage('Publish') {
             steps {
-                sh '$HOME/.dotnet/dotnet publish --configuration Release --output ./publish'
+                sh '$HOME/.dotnet/dotnet publish --configuration Release --output $(pwd)/publish'
             }
         }
 
