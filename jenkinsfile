@@ -32,9 +32,9 @@ pipeline {
 
         stage('Deploy to Azure') {
             steps {
-                withCredentials([string(credentialsId: 'azure-service-principal', variable: 'AZURE_CREDENTIALS')]) {
+                withCredentials([file(credentialsId: 'azure-service-principal', variable: 'AZURE_CREDENTIALS')]) {
                     script {
-                        def json = readJSON text: AZURE_CREDENTIALS
+                        def json = readJSON file: AZURE_CREDENTIALS
                         sh """
                         az login --service-principal -u ${json.clientId} -p ${json.clientSecret} --tenant ${json.tenantId}
                         az webapp up --name dotnet-website --resource-group rg-deneme-eastus-01 --plan ASP-rgdenemeeastus01-8678 --location "UK West" --sku F1 --src-path ./publish
