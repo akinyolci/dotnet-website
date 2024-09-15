@@ -52,7 +52,7 @@ pipeline {
 
         stage('Deploy to Azure') {
             steps {
-                withCredentials([string(credentialsId: 'azure-service-principal-2', variable: 'AZURE_CREDENTIALS')]) {
+                withCredentials([string(credentialsId: 'azure-service-principal', variable: 'AZURE_CREDENTIALS')]) {
                     script {
                         def json = new groovy.json.JsonSlurper().parseText(AZURE_CREDENTIALS)
                         sh """
