@@ -50,32 +50,38 @@ pipeline {
             }
         }
 
-        stage('Deploy to Azure') {
-    steps {
-        withCredentials([azureServicePrincipal(
-            credentialsId: 'azure-service-principal-2', 
-            subscriptionIdVariable: 'SUBSCRIPTION_ID', 
-            clientIdVariable: 'AZURE_CLIENT_ID', 
-            clientSecretVariable: 'AZURE_CLIENT_SECRET', 
-            tenantIdVariable: 'AZURE_TENANT_ID'
-        )]) {
-            script {
-                // Login to Azure using service principal
-                sh """
-                az login --service-principal \
-                  --username $AZURE_CLIENT_ID \
-                  --password $AZURE_CLIENT_SECRET \
-                  --tenant $AZURE_TENANT_ID
-                """
-
-                // Deploy to Azure App Service
-                sh """
-                az webapp deploy --name dotnet-website --resource-group rg-deneme-eastus-01 \
-                --src-path ./publish --type zip
-                """
+        stage('Zip Publish Directory') {
+            steps {
+                sh 'zip -r publish.zip ./publish'
             }
         }
-    }
-}
+
+        stage('Deploy to Azure') {
+            steps {
+                withCredentials([azureServicePrincipal(
+                    credentialsId: 'azure-service-principal', 
+                    subscriptionIdVariable: 'SUBSCRIPTION_ID', 
+                    clientIdVariable: 'AZURE_CLIENT_ID', 
+                    clientSecretVariable: 'AZURE_CLIENT_SECRET', 
+                    tenantIdVariable: 'AZURE_TENANT_ID'
+                )]) {
+                    script {
+                        // Login to Azure using service principal
+                        sh """
+                        az login --service-principal \
+                          --username $AZURE_CLIENT_ID \
+                          --password $AZURE_CLIENT_SECRET \
+                          --tenant $AZURE_TENANT_ID
+                        """
+
+                        // Deploy to Azure App Service
+                        sh """
+                        az webapp deploy --name dotnet-website --resource-group rg-deneme-eastus-01 \
+                        --src-path publish.zip --type zip
+                        """
+                    }
+                }
+            }
+        }
     }
 }
