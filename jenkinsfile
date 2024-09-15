@@ -6,6 +6,15 @@ pipeline {
     }
 
     stages {
+        stage('Install .NET SDK') {
+            steps {
+                sh 'wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh'
+                sh 'chmod +x dotnet-install.sh'
+                sh './dotnet-install.sh --channel 8.0'
+                sh 'export PATH=$PATH:$HOME/.dotnet'
+            }
+        }
+
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/akinyolci/dotnet-website.git'
@@ -14,27 +23,27 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'dotnet build --configuration Release'
+                sh '$HOME/.dotnet/dotnet build --configuration Release'
             }
         }
 
         stage('Test') {
             steps {
-                sh 'dotnet test --configuration Release'
+                sh '$HOME/.dotnet/dotnet test --configuration Release'
             }
         }
 
         stage('Publish') {
             steps {
-                sh 'dotnet publish --configuration Release --output ./publish'
+                sh '$HOME/.dotnet/dotnet publish --configuration Release --output ./publish'
             }
         }
 
         stage('Deploy to Azure') {
             steps {
-                withCredentials([file(credentialsId: 'azure-service-principal', variable: 'AZURE_CREDENTIALS')]) {
+                withCredentials([string(credentialsId: 'azure-service-principal', variable: 'AZURE_CREDENTIALS')]) {
                     script {
-                        def json = readJSON file: AZURE_CREDENTIALS
+                        def json = readJSON text: AZURE_CREDENTIALS
                         sh """
                         az login --service-principal -u ${json.clientId} -p ${json.clientSecret} --tenant ${json.tenantId}
                         az webapp up --name dotnet-website --resource-group rg-deneme-eastus-01 --plan ASP-rgdenemeeastus01-8678 --location "UK West" --sku F1 --src-path ./publish
