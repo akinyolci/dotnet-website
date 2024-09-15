@@ -58,7 +58,7 @@ pipeline {
 
         stage('Zip Publish Directory') {
             steps {
-                sh 'zip -r publish.zip ./publish'
+                sh 'cd publish && zip -r ../publish.zip *'
             }
         }
 
