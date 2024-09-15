@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        AZURE_CREDENTIALS = credentials('azure-service-principal')
+        // Storing credentials and ensuring PATH includes .dotnet for all stages
+        PATH = "${env.PATH}:${HOME}/.dotnet"
     }
 
     stages {
@@ -11,7 +12,6 @@ pipeline {
                 sh 'wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh'
                 sh 'chmod +x dotnet-install.sh'
                 sh './dotnet-install.sh --channel 8.0'
-                sh 'export PATH=$PATH:$HOME/.dotnet'
             }
         }
 
@@ -52,14 +52,15 @@ pipeline {
 
         stage('Deploy to Azure') {
             steps {
-                withCredentials([string(credentialsId: 'azure-service-principal', variable: 'AZURE_CREDENTIALS')]) {
+                // Using Azure service principal with direct field access for credentials
+                withCredentials([azureServicePrincipal(credentialsId: 'azure-service-principal', 
+                    clientIdVariable: 'AZURE_CLIENT_ID', 
+                    clientSecretVariable: 'AZURE_CLIENT_SECRET', 
+                    tenantIdVariable: 'AZURE_TENANT_ID')]) {
                     script {
-                        def json = new groovy.json.JsonSlurper().parseText(AZURE_CREDENTIALS)
-                        def clientId = json.clientId
-                        def clientSecret = json.clientSecret
-                        def tenantId = json.tenantId
+                        echo "Using Azure Service Principal for deployment"
                         sh """
-                        az login --service-principal -u ${clientId} -p ${clientSecret} --tenant ${tenantId}
+                        az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} --tenant ${AZURE_TENANT_ID}
                         az webapp up --name dotnet-website --resource-group rg-deneme-eastus-01 --plan ASP-rgdenemeeastus01-8678 --location "UK West" --sku F1 --src-path ./publish
                         """
                     }
