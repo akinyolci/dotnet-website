@@ -2,60 +2,64 @@ pipeline {
     agent any
 
     environment {
-        DOTNET_ROOT = "${WORKSPACE}/.dotnet"
-        PATH = "${DOTNET_ROOT}:${PATH}"
+        AZURE_CREDENTIALS = credentials('azure-service-principal')
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                git url: 'https://github.com/akinyolci/dotnet-website.git', branch: 'main'
-            }
-        }
-
         stage('Install .NET SDK') {
             steps {
                 sh 'wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh'
                 sh 'chmod +x dotnet-install.sh'
                 sh './dotnet-install.sh --channel 8.0'
+                sh 'export PATH=$PATH:$HOME/.dotnet'
             }
         }
 
         stage('Install Azure CLI') {
             steps {
                 sh '''
-                if ! command -v az &> /dev/null; then
-                    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash;
+                if ! command -v az &> /dev/null
+                then
+                    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
                 fi
                 '''
             }
         }
 
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/akinyolci/dotnet-website.git'
+            }
+        }
+
         stage('Build') {
             steps {
-                sh './.dotnet/dotnet build --configuration Release'
+                sh '$HOME/.dotnet/dotnet build --configuration Release'
             }
         }
 
         stage('Test') {
             steps {
-                sh './.dotnet/dotnet test --configuration Release'
+                sh '$HOME/.dotnet/dotnet test --configuration Release'
             }
         }
 
         stage('Publish') {
             steps {
-                sh './.dotnet/dotnet publish --configuration Release --output ./publish'
+                sh '$HOME/.dotnet/dotnet publish --configuration Release --output ./publish'
             }
         }
 
         stage('Deploy to Azure') {
             steps {
-                withCredentials([azureServicePrincipal(credentialsId: 'AZURE_CREDENTIALS')]) {
-                    sh '''
-                    az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-                    az webapp deployment source config-zip --resource-group <resource-group> --name <app-name> --src ./publish.zip
-                    '''
+                withCredentials([string(credentialsId: 'azure-service-principal-2', variable: 'AZURE_CREDENTIALS')]) {
+                    script {
+                        def json = new groovy.json.JsonSlurper().parseText(AZURE_CREDENTIALS)
+                        sh """
+                        az login --service-principal -u ${json.clientId} -p ${json.clientSecret} --tenant ${json.tenantId}
+                        az webapp up --name dotnet-website --resource-group rg-deneme-eastus-01 --plan ASP-rgdenemeeastus01-8678 --location "UK West" --sku F1 --src-path ./publish
+                        """
+                    }
                 }
             }
         }
